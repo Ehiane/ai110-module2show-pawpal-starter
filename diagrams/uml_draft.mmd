@@ -1,0 +1,43 @@
+classDiagram
+    class Owner {
+        -OwnerId: UUID
+        -Name: string
+        -Pets: List[Pet]
+        -Schedules: List[Schedule]
+        +Get_Pets() List[Pet]
+        +Get_Tasks() List[Task]
+        +Get_OwnerID() UUID
+        +Get_Name() string
+    }
+
+    class Pet {
+        -PetId: UUID
+        -Name: string
+        -Breed: string
+        -Age: int
+        -Owner: Owner
+        +Get_Owner() Owner
+        +Get_Name() string
+        +Get_Breed() string
+        +Get_Age() int
+    }
+
+    class Schedule {
+        -Tasks: List[Task]
+        +Get_Tasks() List[Task]
+    }
+
+    class Task {
+        -Time: DateTime
+        -Priority: Enum(High, Medium, Low)
+        -Owner_Preferences: Dict
+        -Duration: int
+        +Get_TaskTime() DateTime
+        +Get_PriorityLevel() Enum
+        +Get_OwnerPreferences() Dict
+        +Get_TaskDuration() int
+    }
+
+    Owner "1" --> "*" Pet : owns
+    Owner "1" --> "*" Schedule : manages
+    Schedule "1" --> "*" Task : contains

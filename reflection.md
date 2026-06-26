@@ -5,12 +5,60 @@
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+    The core design is centered 4 core classes, 
+    Pets, Owners, Tasks, and Schedules.
+
 - What classes did you include, and what responsibilities did you assign to each?
+    * We need a Pet class, to identify the pet and it's attributes 
+        * Attributes:
+            * PetId: UUID
+            * Name: string
+            * Breed: string
+            * Age: int
+            * Owner: Owner
+        * Methods:
+            * Get_Owner()
+            * Get_Name()
+            * Get_Breed()
+            * Get_Age()
+            * Get_Owner()
+    * We need an Owner class, to hold information about the pet it's related to and their preferences
+        * Attributes:
+            * OwnerId: UUID
+            * Name: string
+            * Pets: List[Pet]
+            * Schedules: List[Schedule] //per pet
+        * Methods:
+            * Get_Pets()
+            * Get_Tasks()
+            * Get_OwnerID()
+            * Get_Name()
+
+    * we need a Task class, to collect information of what should be done to a pet, they could have priority as an attribute.
+        * Attributes:
+            * Time: DateTime
+            * Priority: Enum(High, Medium, Low)
+            * Owner_Preferences: Dict
+            * Duration: int
+        * Methods:
+            * Get_TaskTime()
+            * Get_PriorityLevel()
+            * Get_OwnerPreferences()
+            * Get_TaskDuration()
+
+    * We need a Schedule class, which houses the collection of tasks needed to be done now and in the future. 
+        * Attributes:
+            * Tasks: List[Task]
+        * Methods:
+            * Get_Tasks()
 
 **b. Design changes**
 
 - Did your design change during implementation?
+    * Yes
 - If yes, describe at least one change and why you made it.
+    * Having a Schedule class that determines the order of operations for tasks AKA priority. 
+    They could be either done immediately or at a particular time. 
 
 ---
 
