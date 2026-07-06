@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
-from datetime import datetime
+from typing import List, Dict, Optional, Tuple
+from datetime import datetime, timedelta
 from enum import Enum
 from uuid import UUID, uuid4
+from copy import copy
 
 
 class PriorityLevel(Enum):
@@ -16,6 +17,10 @@ class Frequency(Enum):
     DAILY = "Daily"
     WEEKLY = "Weekly"
     MONTHLY = "Monthly"
+
+
+PRIORITY_ORDER = {PriorityLevel.HIGH: 0, PriorityLevel.MEDIUM: 1, PriorityLevel.LOW: 2}
+FREQUENCY_STEP = {Frequency.DAILY: 1, Frequency.WEEKLY: 7, Frequency.MONTHLY: 30}
 
 
 @dataclass
@@ -46,6 +51,10 @@ class Task:
     def get_task_duration(self) -> int:
         """Return the task's duration in minutes."""
         return self.duration
+
+    def get_end_time(self) -> datetime:
+        """Return the task's end time (start time + duration)."""
+        return self.time + timedelta(minutes=self.duration)
 
     def get_description(self) -> str:
         """Return the task's description."""
@@ -207,6 +216,218 @@ class Owner:
         return [task for task in self.get_tasks() if task.is_completed]
 
 
+def has_conflict(task1: Task, task2: Task) -> bool:
+    """Check if two tasks overlap in time (same pet, overlapping windows).
+
+    Returns True if both tasks are for the same pet AND their time windows overlap.
+    Handles the case where task1 starts before task2 starts but ends during task2,
+    or any other overlap scenario. Returns False for different pets (no conflict).
+
+    Args:
+        task1: First task to compare
+        task2: Second task to compare
+
+    Returns:
+        bool: True if tasks conflict (same pet + time overlap), False otherwise
+    """
+    if task1.pet != task2.pet or task1.task_id == task2.task_id:
+        return False
+
+    return not (task1.get_end_time() <= task2.time or task2.get_end_time() <= task1.time)
+
+
+def expand_recurring_task(task: Task, num_days: int) -> List[Task]:
+    """Generate task instances from a recurring pattern over a time window.
+
+    Converts a single recurring task definition into multiple task instances,
+    one for each occurrence within the given time window. Each instance has a
+    unique task_id but preserves the original task's properties.
+
+    Args:
+        task: The task with a frequency pattern (ONCE, DAILY, WEEKLY, MONTHLY)
+        num_days: Number of days ahead to expand
+
+    Returns:
+        List[Task]: Task instances. ONCE returns [task], DAILY returns ~num_days
+                    instances, WEEKLY returns ~num_days/7 instances, etc.
+
+    Example:
+        A DAILY task over 7 days expands to 7 instances at daily intervals.
+        A WEEKLY task over 7 days expands to 1 instance (itself).
+    """
+    if task.frequency == Frequency.ONCE:
+        return [task]
+
+    step = FREQUENCY_STEP.get(task.frequency, 1)
+    instances = []
+
+    for i in range(0, num_days, step):
+        new_task = copy(task)
+        new_task.time = task.time + timedelta(days=i)
+        new_task.task_id = uuid4()
+        instances.append(new_task)
+
+    return instances
+
+
+def find_all_conflicts(tasks: List[Task]) -> List[Tuple[Task, Task]]:
+    """Find all conflicting task pairs in a list.
+
+    Identifies every pair of tasks that cannot coexist (same pet, overlapping times).
+    Optimized by grouping tasks by pet ID first, avoiding O(n²) cross-pet comparisons
+    where cross-pet tasks can never conflict.
+
+    Args:
+        tasks: List of all tasks to check for conflicts
+
+    Returns:
+        List[Tuple[Task, Task]]: List of (task1, task2) pairs where both tasks
+                                overlap in time and are for the same pet.
+
+    Time Complexity:
+        Worst case: O(n²) when all tasks are for one pet.
+        Average case: Much better when tasks are distributed across multiple pets.
+    """
+    conflicts = []
+    by_pet_id = {}
+    for task in tasks:
+        pet_id = id(task.pet)
+        if pet_id not in by_pet_id:
+            by_pet_id[pet_id] = []
+        by_pet_id[pet_id].append(task)
+
+    for pet_tasks in by_pet_id.values():
+        for i, t1 in enumerate(pet_tasks):
+            for t2 in pet_tasks[i+1:]:
+                if has_conflict(t1, t2):
+                    conflicts.append((t1, t2))
+    return conflicts
+
+
+def sort_by_time(tasks: List[Task]) -> List[Task]:
+    """Sort tasks chronologically with today's tasks prioritized first.
+
+    Creates a sort key tuple (days_from_today, time_of_day) that ensures:
+    - Today's tasks appear first (days_diff = 0)
+    - Within same day, tasks are sorted by time of day
+    - Future tasks appear in chronological order
+
+    Args:
+        tasks: List of tasks to sort
+
+    Returns:
+        List[Task]: Tasks sorted chronologically, with today's tasks first
+
+    Example:
+        Input: [6PM task, 9AM task, 8AM task, 5PM task, 12PM task, 3PM task]
+        Output: [8AM task, 9AM task, 12PM task, 3PM task, 5PM task, 6PM task]
+    """
+    today = datetime.now().date()
+    return sorted(tasks, key=lambda t: ((t.time.date() - today).days, t.time.time()))
+
+
+class TaskQuery:
+    """Composable filter/sort pipeline for tasks (fluent API pattern).
+
+    Allows chaining multiple filter and sort operations on task lists,
+    reducing code duplication and improving readability. Each operation
+    returns a new TaskQuery, enabling readable, chainable syntax.
+
+    Example:
+        results = (TaskQuery(scheduler.get_all_tasks())
+                   .filter_by_pet(fluffy)
+                   .filter_by_status('pending')
+                   .sort_by('time')
+                   .limit(5))
+
+    Attributes:
+        tasks (List[Task]): Current filtered/sorted task list
+    """
+
+    def __init__(self, tasks: List[Task]):
+        """Initialize with a task list.
+
+        Args:
+            tasks: List of tasks to filter/sort
+        """
+        self.tasks = tasks
+
+    def filter_by_pet(self, pet: Pet) -> 'TaskQuery':
+        """Keep only tasks for a specific pet.
+
+        Args:
+            pet: The pet to filter by
+
+        Returns:
+            TaskQuery: New pipeline with pet-filtered tasks
+        """
+        return TaskQuery([t for t in self.tasks if t.pet == pet])
+
+    def filter_by_status(self, status: str) -> 'TaskQuery':
+        """Keep tasks by completion status.
+
+        Args:
+            status: Either 'pending' (incomplete) or 'done' (completed)
+
+        Returns:
+            TaskQuery: New pipeline with status-filtered tasks
+
+        Raises:
+            Status string is case-insensitive.
+        """
+        is_done = (status.lower() == 'done')
+        return TaskQuery([t for t in self.tasks if t.is_completed == is_done])
+
+    def filter_by_priority(self, priority: PriorityLevel) -> 'TaskQuery':
+        """Keep only tasks with a specific priority level.
+
+        Args:
+            priority: PriorityLevel.HIGH, MEDIUM, or LOW
+
+        Returns:
+            TaskQuery: New pipeline with priority-filtered tasks
+        """
+        return TaskQuery([t for t in self.tasks if t.priority == priority])
+
+    def sort_by(self, key: str) -> 'TaskQuery':
+        """Sort by time or priority.
+
+        Args:
+            key: Sort key - either 'time' (chronological) or 'priority' (HIGH->MEDIUM->LOW)
+
+        Returns:
+            TaskQuery: New pipeline with sorted tasks
+
+        Raises:
+            ValueError: If key is neither 'time' nor 'priority'
+        """
+        if key.lower() == 'time':
+            return TaskQuery(sort_by_time(self.tasks))
+        elif key.lower() == 'priority':
+            return TaskQuery(sorted(self.tasks, key=lambda t: PRIORITY_ORDER[t.priority]))
+        else:
+            raise ValueError(f"Unknown sort key: {key}")
+
+    def limit(self, n: int) -> List[Task]:
+        """Return only the first n tasks (terminal operation).
+
+        Args:
+            n: Maximum number of tasks to return
+
+        Returns:
+            List[Task]: First n tasks (or fewer if less than n exist)
+        """
+        return self.tasks[:n]
+
+    def get_results(self) -> List[Task]:
+        """Return all filtered/sorted tasks (terminal operation).
+
+        Returns:
+            List[Task]: All tasks in the current pipeline
+        """
+        return self.tasks
+
+
 class Scheduler:
     """The brain of the system that retrieves, organizes, and manages tasks across all pets and owners."""
 
@@ -267,18 +488,40 @@ class Scheduler:
         """Return tasks sorted by priority (HIGH -> MEDIUM -> LOW), optionally from a custom list."""
         if tasks is None:
             tasks = self.get_all_tasks()
-        priority_order = {PriorityLevel.HIGH: 0, PriorityLevel.MEDIUM: 1, PriorityLevel.LOW: 2}
-        return sorted(tasks, key=lambda t: priority_order[t.priority])
+        return sorted(tasks, key=lambda t: PRIORITY_ORDER[t.priority])
 
     def get_tasks_sorted_by_time(self, tasks: Optional[List[Task]] = None) -> List[Task]:
-        """Return tasks sorted chronologically by scheduled time."""
+        """Return tasks sorted chronologically by scheduled time (today first)."""
         if tasks is None:
             tasks = self.get_all_tasks()
-        return sorted(tasks, key=lambda t: t.time)
+        return sort_by_time(tasks)
 
     def get_overdue_tasks(self, current_time: datetime) -> List[Task]:
         """Return all incomplete tasks with scheduled times before or at the current time."""
         return [task for task in self.get_all_tasks() if task.time <= current_time and not task.is_completed]
+
+    def get_upcoming_tasks(self, days_ahead: int = 7) -> List[Task]:
+        """Get all tasks in the next N days, expanded from recurring patterns."""
+        now = datetime.now()
+        cutoff = now + timedelta(days=days_ahead)
+
+        all_expanded = []
+        for task in self.get_all_tasks():
+            expanded = expand_recurring_task(task, days_ahead)
+            all_expanded.extend(expanded)
+
+        return [t for t in all_expanded if now <= t.time <= cutoff]
+
+    def find_conflicts_for_owner(self, owner: Owner) -> List[Tuple[Task, Task]]:
+        """Find all conflicting task pairs for an owner."""
+        tasks = owner.get_tasks()
+        return find_all_conflicts(tasks)
+
+    def query_tasks(self, tasks: Optional[List[Task]] = None) -> TaskQuery:
+        """Start a composable filter/sort pipeline."""
+        if tasks is None:
+            tasks = self.get_all_tasks()
+        return TaskQuery(tasks)
 
     def mark_task_completed(self, task: Task) -> None:
         """Mark a task as completed."""

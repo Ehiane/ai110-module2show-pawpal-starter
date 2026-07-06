@@ -82,7 +82,22 @@
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+  
+  **Tradeoff: Per-Pet Conflict Detection vs. Owner-Level Availability**
+  
+  The scheduler detects conflicts *only within the same pet's tasks* (e.g., Fluffy can't have two walks at 3:00 PM). However, it does not detect *owner-level conflicts* where the owner is busy with one pet and cannot attend to another (e.g., owner walking Fluffy and grooming Whiskers simultaneously).
+  
+  **Implementation detail:** The `has_conflict(task1, task2)` function returns `False` immediately if the tasks are for different pets, without considering whether the owner is available to perform both tasks at once.
+
 - Why is that tradeoff reasonable for this scenario?
+  
+  This tradeoff is reasonable because:
+  1. **Multiple caretakers:** In a typical household, the owner may have family members, dog walkers, or pet sitters who can handle multiple pets simultaneously.
+  2. **Different task types:** Some tasks (like feeding two pets) can be done quickly and sequentially, while others (like two walks) can't happen at the same time.
+  3. **Complexity vs. benefit:** Detecting owner-level conflicts would require knowing the owner's availability, duration overlaps, and which tasks actually require active owner participation (feeding requires owner, but some pets can play independently).
+  4. **User flexibility:** Displaying per-pet conflicts gives the owner immediate, actionable warnings about scheduling problems within each pet's schedule. Owner-level conflicts would require more complex UI and scheduling logic.
+  
+  **Future enhancement:** If the app needed to enforce owner-level availability, we could add a second check: `find_owner_level_conflicts()` that checks tasks for the same owner across all pets, with configurable task types that require active owner participation.
 
 ---
 

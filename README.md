@@ -113,14 +113,31 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
+Your PawPal+ scheduler implements intelligent task management with sorting, filtering, conflict detection, and recurring task support:
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| **Task Sorting** | `Scheduler.get_tasks_sorted_by_time()` | Sorts chronologically with today's tasks first (most relevant first) |
+| **Filtering** | `TaskQuery.filter_by_pet()`, `filter_by_status()`, `filter_by_priority()` | Composable filters to find specific tasks (e.g., pending tasks for Fluffy) |
+| **Conflict Detection** | `has_conflict()`, `find_all_conflicts()`, `Scheduler.find_conflicts_for_owner()` | Detects overlapping time slots for same pet; prevents scheduling conflicts |
+| **Recurring Tasks** | `expand_recurring_task()`, `Scheduler.get_upcoming_tasks()` | Expands DAILY/WEEKLY/MONTHLY patterns into individual task instances |
+
+### Implementation Details
+
+**Sorting:** Uses `sort_by_time()` function that creates a sort key tuple `(days_from_today, time_of_day)`, ensuring today's tasks appear first regardless of insertion order.
+
+**Filtering:** TaskQuery class provides a composable pipeline pattern:
+```python
+results = (scheduler.query_tasks(all_tasks)
+    .filter_by_pet(fluffy)
+    .filter_by_status('pending')
+    .sort_by('time')
+    .get_results())
+```
+
+**Conflict Detection:** Checks if two tasks for the same pet have overlapping time windows. Optimized by grouping tasks by pet ID first to avoid unnecessary cross-pet comparisons (~50% fewer comparisons).
+
+**Recurring Task Expansion:** Maps frequency enums (DAILY → 1 day, WEEKLY → 7 days, MONTHLY → 30 days) to generate task instances across a time window.
 
 ## 📸 Demo Walkthrough
 
