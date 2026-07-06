@@ -188,8 +188,8 @@ if st.session_state.owner:
 
     all_tasks = st.session_state.scheduler.get_all_tasks_for_owner(st.session_state.owner)
 
-    # Check for conflicts and display warnings (only if there are tasks)
     if all_tasks:
+        # Check for conflicts and display warnings
         conflicts = st.session_state.scheduler.find_conflicts_for_owner(st.session_state.owner)
         if conflicts:
             st.warning(f"⚠️ **{len(conflicts)} scheduling conflict(s) detected!**")
@@ -205,8 +205,6 @@ if st.session_state.owner:
                         f"Overlap: {overlap_minutes} minutes"
                     )
             st.divider()
-
-    if all_tasks:
         # Sort tasks by time
         sorted_tasks = st.session_state.scheduler.get_tasks_sorted_by_time(all_tasks)
 
