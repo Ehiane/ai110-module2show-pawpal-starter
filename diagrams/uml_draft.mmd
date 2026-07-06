@@ -5,9 +5,16 @@ classDiagram
         -Pets: List[Pet]
         -Schedules: List[Schedule]
         +Get_Pets() List[Pet]
+        +Add_Pet(pet) void
+        +Remove_Pet(pet) void
         +Get_Tasks() List[Task]
+        +Get_Tasks_By_Priority(priority) List[Task]
+        +Get_Tasks_For_Pet(pet) List[Task]
+        +Get_All_Pending_Tasks() List[Task]
+        +Get_All_Completed_Tasks() List[Task]
         +Get_OwnerID() UUID
         +Get_Name() string
+        +Add_Schedule(schedule) void
     }
 
     class Pet {
@@ -20,24 +27,69 @@ classDiagram
         +Get_Name() string
         +Get_Breed() string
         +Get_Age() int
+        +Get_Tasks() List[Task]
+        +Get_Pending_Tasks() List[Task]
+        +Get_Completed_Tasks() List[Task]
     }
 
     class Schedule {
+        -ScheduleId: UUID
+        -Pet: Pet
         -Tasks: List[Task]
         +Get_Tasks() List[Task]
+        +Add_Task(task) void
+        +Remove_Task(task) void
+        +Get_Pet() Pet
+        +Get_Tasks_By_Priority(priority) List[Task]
+        +Get_Pending_Tasks() List[Task]
     }
 
     class Task {
+        -TaskId: UUID
+        -Description: string
         -Time: DateTime
         -Priority: Enum(High, Medium, Low)
+        -Frequency: Enum(Once, Daily, Weekly, Monthly)
         -Owner_Preferences: Dict
         -Duration: int
+        -Pet: Pet
+        -Schedule: Schedule
+        -IsCompleted: bool
+        +Get_Description() string
         +Get_TaskTime() DateTime
         +Get_PriorityLevel() Enum
+        +Get_Frequency() Enum
         +Get_OwnerPreferences() Dict
         +Get_TaskDuration() int
+        +Get_Pet() Pet
+        +Mark_Completed() void
+        +Mark_Incomplete() void
+        +Is_Task_Completed() bool
+    }
+
+    class Scheduler {
+        -Owners: List[Owner]
+        +Add_Owner(owner) void
+        +Remove_Owner(owner) void
+        +Get_All_Tasks() List[Task]
+        +Get_All_Tasks_For_Owner(owner) List[Task]
+        +Get_Pending_Tasks_For_Owner(owner) List[Task]
+        +Get_Completed_Tasks_For_Owner(owner) List[Task]
+        +Get_Tasks_By_Priority_For_Owner(owner, priority) List[Task]
+        +Get_Tasks_For_Pet(pet) List[Task]
+        +Get_Pending_Tasks_For_Pet(pet) List[Task]
+        +Get_Completed_Tasks_For_Pet(pet) List[Task]
+        +Get_Tasks_By_Frequency(frequency) List[Task]
+        +Get_Tasks_Sorted_By_Priority(tasks) List[Task]
+        +Get_Tasks_Sorted_By_Time(tasks) List[Task]
+        +Get_Overdue_Tasks(currentTime) List[Task]
+        +Mark_Task_Completed(task) void
     }
 
     Owner "1" --> "*" Pet : owns
     Owner "1" --> "*" Schedule : manages
     Schedule "1" --> "*" Task : contains
+    Schedule "*" --> "1" Pet : organizes tasks for
+    Task "*" --> "1" Pet : applies to
+    Task "*" --> "1" Schedule : belongs to
+    Scheduler "1" --> "*" Owner : manages

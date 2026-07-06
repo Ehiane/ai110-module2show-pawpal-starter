@@ -58,7 +58,17 @@
     * Yes
 - If yes, describe at least one change and why you made it.
     * Having a Schedule class that determines the order of operations for tasks AKA priority. 
-    They could be either done immediately or at a particular time. 
+    They could be either done immediately or at a particular time.
+    
+    * **Additional refinement during code review:**
+        * Added a `pet` field to Task class to establish which pet a task is for (previously unclear)
+        * Added back-reference `schedule` in Task to enable finding which Schedule owns a task
+        * Added filtering methods to Owner class: `get_tasks_by_priority()` and `get_tasks_for_pet()` to avoid inefficient loops throughout the codebase
+        * Clarified that schedules are pet-specific rather than owner-level, improving the relationship model (each pet can have its own schedule)
+    * **Why these changes were necessary:**
+        * The original design had missing relationships—tasks didn't reference which pet they applied to, making the system ambiguous
+        * The Owner.get_tasks() method was inefficient (O(n×m)) because it rebuilt the full task list on each call with no filtering capability
+        * Without pet-specific queries, the scheduler couldn't efficiently answer "what tasks does Fluffy have?" or "what high-priority tasks need to be done?" 
 
 ---
 
