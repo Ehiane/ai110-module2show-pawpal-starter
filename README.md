@@ -157,14 +157,138 @@ results = (scheduler.query_tasks(all_tasks)
 
 **Recurring Task Expansion:** Maps frequency enums (DAILY → 1 day, WEEKLY → 7 days, MONTHLY → 30 days) to generate task instances across a time window.
 
+## 🎯 Features
+
+PawPal+ provides intelligent pet care scheduling with these key features:
+
+| Feature | Description | Benefit |
+|---------|-------------|---------|
+| **Smart Sorting** | Tasks auto-sorted chronologically with today's tasks appearing first | Users see most relevant tasks immediately |
+| **Priority-Based Planning** | HIGH → MEDIUM → LOW task ordering | Helps owners focus on critical care needs first |
+| **Recurring Task Expansion** | DAILY/WEEKLY/MONTHLY patterns generate individual instances | No need to manually enter repetitive tasks |
+| **Conflict Detection** | Identifies overlapping time slots for same pet | Prevents impossible schedules and shows overlap duration |
+| **Task Completion Tracking** | Mark tasks done/pending with status indicators | Monitor progress toward daily pet care goals |
+| **Composable Filtering** | Chain filters (.filter_by_pet().filter_by_status().sort_by()) | Flexible querying without complex code |
+
 ## 📸 Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Main UI Features
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+The PawPal+ app provides an intuitive interface for managing multiple pets and their care schedules:
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+1. **Owner & Pet Setup (Sidebar)**
+   - Create or load an owner account
+   - Add pets with name, breed, and age
+   - Quick access to all pets (shows pet name, breed, age, task count)
+
+2. **Task Management**
+   - Select a pet from the sidebar
+   - Create tasks with description, time, duration, priority (HIGH/MEDIUM/LOW), frequency (ONCE/DAILY/WEEKLY/MONTHLY)
+   - Add owner notes for context (e.g., "use hypoallergenic shampoo")
+
+3. **Schedule Visualization**
+   - View all tasks sorted chronologically
+   - See pet name, task description, duration, priority, and completion status
+   - Visual conflict warnings show overlapping tasks with overlap duration
+
+4. **Task Management Controls**
+   - Mark tasks complete with ✓ button
+   - Restore pending tasks with ↩ button
+   - Instant status updates and schedule refresh
+
+5. **Analytics Dashboard**
+   - Total tasks, pending, and completed counts
+   - Priority breakdown (HIGH/MEDIUM/LOW metrics)
+   - Real-time updates as tasks are added or completed
+
+### Example Workflow
+
+```
+Step 1: Create Owner
+  → Click "Create/Load Owner" with name "Jordan"
+  → Owner account created in session
+
+Step 2: Add Pets
+  → Click "Add a new pet"
+  → Add "Fluffy" (Golden Retriever, 3 years old)
+  → Add "Whiskers" (Tabby Cat, 2 years old)
+  → Both pets appear in sidebar
+
+Step 3: Add Tasks
+  → Select "Fluffy" from sidebar
+  → Add "Morning walk" @ 8:00 AM, 30 min, HIGH priority, DAILY
+  → Add "Lunch feeding" @ 12:00 PM, 15 min, HIGH priority, ONCE
+  → Select "Whiskers"
+  → Add "Playtime" @ 3:00 PM, 20 min, MEDIUM priority, DAILY
+  → Add "Grooming" @ 3:00 PM, 15 min, MEDIUM priority, ONCE
+  → ⚠️ Conflict detected! (Playtime and Grooming overlap)
+
+Step 4: View Schedule
+  → Today's schedule shows all tasks sorted by time
+  → Conflict section expands to show overlapping tasks
+  → Metrics show: 4 total tasks, 4 pending, 0 completed
+
+Step 5: Manage Tasks
+  → Mark "Morning walk" complete
+  → Pending count decreases to 3, completed increases to 1
+  → "Morning walk" moves to completed section
+```
+
+### Key Scheduler Behaviors Demonstrated
+
+**Sorting by Time:**
+- Tasks displayed in chronological order (8:00 AM before 3:00 PM)
+- Even if added out of order, scheduler sorts correctly
+
+**Conflict Detection:**
+- Playtime (3:00 PM, 20 min) + Grooming (3:00 PM, 15 min) = conflict
+- Overlap shown: 15 minutes
+- Warning expands to show both task details
+
+**Recurring Tasks:**
+- DAILY "Morning walk" will expand to 7 instances (one per day)
+- Accessible via `get_upcoming_tasks(days_ahead=7)`
+
+**Priority Filtering:**
+- All HIGH priority tasks (walks, feeding) show first
+- MEDIUM priority tasks (playtime, grooming) show below
+
+### Sample CLI Output
+
+Run `python main.py` to see the backend logic in action:
+
+```
+================================================================================
+
+    +===============================================================+
+    |                   TODAY'S PET SCHEDULE                         |
+    +===============================================================+
+
+================================================================================
+
++----------------+---------------------+------------------------------+------------+----------+
+|     TIME       |    PET NAME         |      TASK DESCRIPTION        |  PRIORITY  | DURATION |
++----------------+---------------------+------------------------------+------------+----------+
+| 08:00 AM     | Fluffy            | Morning walk in the park     | High       | 30 min   |
+| 09:00 AM     | Whiskers          | Breakfast meal               | High       | 10 min   |
+| 12:00 PM     | Fluffy            | Lunch feeding                | High       | 15 min   |
+| 03:00 PM     | Whiskers          | Interactive playtime         | Medium     | 20 min   |
+| 03:00 PM     | Whiskers          | Quick grooming session       | Medium     | 15 min   | ← CONFLICT
+| 05:00 PM     | Whiskers          | Clean litter box             | Medium     | 10 min   |
+| 06:00 PM     | Fluffy            | Evening walk and bathroom br | High       | 30 min   |
++----------------+---------------------+------------------------------+------------+----------+
+
+================================================================================
+
+    [WARNING] 1 conflict(s) detected - corrective action needed:
+
+      1. WHISKERS - Schedule Conflict
+         Task A: Interactive playtime
+                 @ 03:00 PM (20 min)
+         Task B: Quick grooming session
+                 @ 03:00 PM (15 min)
+         [CRITICAL] Both tasks scheduled at EXACT SAME TIME!
+         Overlap: 15 minutes minimum
+
+================================================================================
+```
