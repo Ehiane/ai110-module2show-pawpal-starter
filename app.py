@@ -183,28 +183,28 @@ if st.session_state.owner:
 
     st.divider()
 
-    # Check for conflicts and display warnings
-    conflicts = st.session_state.scheduler.find_conflicts_for_owner(st.session_state.owner)
-    if conflicts:
-        st.warning(f"⚠️ **{len(conflicts)} scheduling conflict(s) detected!**")
-        with st.expander("View conflicts"):
-            for task1, task2 in conflicts:
-                overlap_start = max(task1.time, task2.time)
-                overlap_end = min(task1.get_end_time(), task2.get_end_time())
-                overlap_minutes = int((overlap_end - overlap_start).total_seconds() / 60)
-                st.write(
-                    f"**{task1.pet.get_name()}** has conflicting tasks:\n"
-                    f"- {task1.get_description()} @ {task1.time.strftime('%I:%M %p')} ({task1.duration} min)\n"
-                    f"- {task2.get_description()} @ {task2.time.strftime('%I:%M %p')} ({task2.duration} min)\n"
-                    f"Overlap: {overlap_minutes} minutes"
-                )
-
-    st.divider()
-
     # Display schedule
     st.subheader("Today's Schedule")
 
     all_tasks = st.session_state.scheduler.get_all_tasks_for_owner(st.session_state.owner)
+
+    # Check for conflicts and display warnings (only if there are tasks)
+    if all_tasks:
+        conflicts = st.session_state.scheduler.find_conflicts_for_owner(st.session_state.owner)
+        if conflicts:
+            st.warning(f"⚠️ **{len(conflicts)} scheduling conflict(s) detected!**")
+            with st.expander("View conflicts"):
+                for task1, task2 in conflicts:
+                    overlap_start = max(task1.time, task2.time)
+                    overlap_end = min(task1.get_end_time(), task2.get_end_time())
+                    overlap_minutes = int((overlap_end - overlap_start).total_seconds() / 60)
+                    st.write(
+                        f"**{task1.pet.get_name()}** has conflicting tasks:\n"
+                        f"- {task1.get_description()} @ {task1.time.strftime('%I:%M %p')} ({task1.duration} min)\n"
+                        f"- {task2.get_description()} @ {task2.time.strftime('%I:%M %p')} ({task2.duration} min)\n"
+                        f"Overlap: {overlap_minutes} minutes"
+                    )
+            st.divider()
 
     if all_tasks:
         # Sort tasks by time
